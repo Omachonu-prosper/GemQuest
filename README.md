@@ -1,2 +1,2 @@
-# GemQuest
-Backend for GemQuest my teams submission for the google gemini AI hackathon
+# TrivAI
+Backend for TrivAI my teams submission for the google gemini AI hackathon
