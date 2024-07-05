@@ -1,6 +1,7 @@
 from fastapi import APIRouter, WebSocketDisconnect, WebSocket
 from uuid import uuid4
 from pydantic import BaseModel
+from random_username.generate import generate_username
 
 """Module for all game room related functionality"""
 
@@ -13,13 +14,13 @@ class RoomDetails(BaseModel):
 
 
 class RoomManager:
-    async def connect(self, websocket: WebSocket, room_id: str) -> bool:
+    async def connect(self, websocket: WebSocket, room_id: str, username: str) -> bool:
         await websocket.accept()
         if not rooms.get(room_id):
             print('room not found')
             return False
         
-        rooms[room_id]['connections'].append(websocket)
+        rooms[room_id]['connections'][username] = websocket
         return True
 
     def disconnect(self, websocket: WebSocket, room_id: str):
@@ -42,7 +43,7 @@ async def create_gameroom_route(room_details: RoomDetails):
         'room_id': room_id,
         'game_started': False,
         'no_of_questions': room_details.no_of_questions,
-        'connections': []
+        'connections': {}
     }
 
     print(rooms)
@@ -53,12 +54,18 @@ async def create_gameroom_route(room_details: RoomDetails):
 
 
 room_manager = RoomManager()
-
 @router.websocket('/gameroom/{room_id}')
 async def gameroom_socket(websocket: WebSocket, room_id: str):
-    connect = await room_manager.connect(websocket, room_id)
+    username = generate_username()[0]
+    connect = await room_manager.connect(websocket, room_id, username)
     if connect:
         print(rooms)
+        await websocket.send_json(
+            {
+                'username': username,
+                'user_id': str(uuid4())
+            }
+        )
         try:
             await websocket.send_text('Welcome to the game')
             while True:
