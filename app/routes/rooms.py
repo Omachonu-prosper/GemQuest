@@ -1,42 +1,17 @@
 from fastapi import APIRouter, WebSocketDisconnect, WebSocket
 from uuid import uuid4
-from pydantic import BaseModel
-from random_username.generate import generate_username
 from datetime import datetime
+from random_username.generate import generate_username
+
+from app.utils.room_manager import RoomManager
+from app.utils.room_details import RoomDetails
 
 """Module for all game room related functionality"""
 
 router = APIRouter()
 rooms = {}
-
-class RoomDetails(BaseModel):
-    category: str
-    no_of_questions: int
-
-
-class RoomManager:
-    async def connect(self, websocket: WebSocket, room_id: str, username: str) -> bool:
-        await websocket.accept()
-        if not rooms.get(room_id):
-            print('room not found')
-            return False
-        
-        rooms[room_id]['connections'].append((username, websocket))
-        return True
-
-    def disconnect(self, websocket: WebSocket, room_id: str):
-        rooms[room_id]['connections'].remove(websocket)
-
-    # async def send_personal_message(self, message: str, websocket: WebSocket):
-    #     await websocket.send_text(message)
-
-    async def broadcast_json(self, room_id: str, data: dict):
-        for connection in rooms[room_id]['connections']:
-            await connection[1].send_json(data)
-
-    async def close_room(self, room_id: str):
-        for connection in rooms[room_id]['connections']:
-            await connection[1].close(reason='Room Closed')
+waitingroom_manager = RoomManager()
+# gameroom_manager = RoomManager()
 
 
 @router.post('/gameroom/create',  status_code=201)
@@ -57,10 +32,6 @@ async def create_gameroom_route(room_details: RoomDetails):
         'message': 'Room created successfully',
         'room_id': room_id
     }
-
-
-waitingroom_manager = RoomManager()
-gameroom_manager = RoomManager()
 
 @router.websocket('/waitingroom/{room_id}')
 async def waitingroom_socket(websocket: WebSocket, room_id: str):

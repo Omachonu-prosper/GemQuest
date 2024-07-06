@@ -9,7 +9,7 @@ from app.utils.waitroom_expiry import close_expired_waitrooms
 # Initialize app
 app = FastAPI()
 scheduler = BackgroundScheduler()
-scheduler.add_job(close_expired_waitrooms, 'interval', seconds=10)
+scheduler.add_job(close_expired_waitrooms, 'interval', minutes=3)
 scheduler.start()
 
 
