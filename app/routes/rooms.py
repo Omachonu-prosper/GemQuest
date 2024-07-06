@@ -2,6 +2,7 @@ from fastapi import APIRouter, WebSocketDisconnect, WebSocket
 from uuid import uuid4
 from pydantic import BaseModel
 from random_username.generate import generate_username
+from datetime import datetime
 
 """Module for all game room related functionality"""
 
@@ -47,7 +48,8 @@ async def create_gameroom_route(room_details: RoomDetails):
         'room_id': room_id,
         'game_started': False,
         'no_of_questions': room_details.no_of_questions,
-        'connections': []
+        'connections': [],
+        'create_time': datetime.now()
     }
 
     print(rooms)
