@@ -9,7 +9,6 @@ from app.utils.room_details import RoomDetails
 """Module for all game room related functionality"""
 
 router = APIRouter()
-rooms = {}
 waitingroom_manager = RoomManager()
 # gameroom_manager = RoomManager()
 
@@ -18,7 +17,7 @@ waitingroom_manager = RoomManager()
 async def create_gameroom_route(room_details: RoomDetails):
     # Generate room id
     room_id = str(uuid4())[:8]
-    rooms[room_id] = {
+    waitingroom_manager.rooms[room_id] = {
         'category': room_details.category,
         'room_id': room_id,
         'game_started': False,
@@ -27,11 +26,12 @@ async def create_gameroom_route(room_details: RoomDetails):
         'create_time': datetime.now()
     }
 
-    print(rooms)
+    print(waitingroom_manager.rooms)
     return {
         'message': 'Room created successfully',
         'room_id': room_id
     }
+
 
 @router.websocket('/waitingroom/{room_id}')
 async def waitingroom_socket(websocket: WebSocket, room_id: str):
@@ -39,6 +39,11 @@ async def waitingroom_socket(websocket: WebSocket, room_id: str):
     connect = await waitingroom_manager.connect(websocket, room_id, username)
     if connect:
         try:
+            await waitingroom_manager.broadcast_json(room_id, {
+                'message': f"{username} joined",
+                'action': 'join_chat',
+                'username': username
+            })
             while True:
                 data = await websocket.receive_json()
                 user_role = data.get('user_role')
@@ -53,7 +58,12 @@ async def waitingroom_socket(websocket: WebSocket, room_id: str):
                     )
                     await waitingroom_manager.close_room(room_id)
         except WebSocketDisconnect:
-            waitingroom_manager.disconnect(websocket)
+            waitingroom_manager.disconnect(websocket, room_id)
+            await waitingroom_manager.broadcast_json(room_id, {
+                'message': f"{username} left",
+                'action': 'exit_chat',
+                'username': username
+            })
     else:
         await websocket.close(reason='Room ID not found')
 
@@ -63,7 +73,7 @@ async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
     # connect = gameroom_manager.connect(websocket, room_id, username)
     await websocket.accept()
     # if connect:
-    print(rooms)
+    print(waitingroom_manager.rooms)
     await websocket.send_text('Welcome to the game')
     while True:
         data = await websocket.receive_text()

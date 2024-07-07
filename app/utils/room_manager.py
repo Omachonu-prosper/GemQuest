@@ -15,9 +15,6 @@ class RoomManager:
     def disconnect(self, websocket: WebSocket, room_id: str):
         self.rooms[room_id]['connections'].remove(websocket)
 
-    # async def send_personal_message(self, message: str, websocket: WebSocket):
-    #     await websocket.send_text(message)
-
     async def broadcast_json(self, room_id: str, data: dict):
         for connection in self.rooms[room_id]['connections']:
             await connection[1].send_json(data)
