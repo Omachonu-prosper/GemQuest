@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 def close_expired_waitrooms():
     from app.routes.rooms import waitingroom_manager

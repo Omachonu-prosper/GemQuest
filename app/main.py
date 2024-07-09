@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.middleware.authorize_jwt import authorize_jwt
+from app.utils.authorize_jwt import authorize_jwt
 from functools import partial
 from app.routes import endpoint
 from app.routes import rooms
@@ -9,7 +9,7 @@ from app.utils.waitroom_expiry import close_expired_waitrooms
 # Initialize app
 app = FastAPI()
 scheduler = BackgroundScheduler()
-scheduler.add_job(close_expired_waitrooms, 'interval', minutes=10)
+# scheduler.add_job(close_expired_waitrooms, 'interval', minutes=10)
 scheduler.start()
 
 

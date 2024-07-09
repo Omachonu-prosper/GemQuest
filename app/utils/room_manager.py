@@ -1,24 +1,48 @@
 from fastapi import WebSocket
+from app.utils.db import db
+
 
 class RoomManager:
-    rooms = {}
+    rooms = dict()
 
     async def connect(self, websocket: WebSocket, room_id: str, username: str) -> bool:
-        await websocket.accept()
-        if not self.rooms.get(room_id):
-            print('room not found')
+        try:
+            await websocket.accept()
+            self.rooms[room_id].append(websocket)
+            room = await db.rooms.find_one_and_update(
+                {'room_id': room_id},
+                {'$set': {f'users.{username}': {
+                    'status': 'connected',
+                    }}
+                }
+            )
+            if not room:
+                return False
+            return True
+        except KeyError:
             return False
-        
-        self.rooms[room_id]['connections'].append((username, websocket))
-        return True
 
-    def disconnect(self, websocket: WebSocket, room_id: str):
-        self.rooms[room_id]['connections'].remove(websocket)
+    async def disconnect(self, websocket: WebSocket, room_id: str, username: str):
+        self.rooms.get(room_id).remove(websocket)
+        await db.rooms.update_one(
+            {'room_id': room_id},
+            {'$unset': {f'users.{username}': ""}}
+        )
 
-    async def broadcast_json(self, room_id: str, data: dict):
-        for connection in self.rooms[room_id]['connections']:
-            await connection[1].send_json(data)
+    async def broadcast_json(self, room_id: str, data: dict, exclude: WebSocket):
+        for connection in self.rooms.get(room_id):
+            if exclude:
+                if connection != exclude:
+                    await connection.send_json(data)
+            else:
+                await connection.send_json(data)
+
+    async def send_json(self, websocket: WebSocket, data: dict):
+        await websocket.send_json(data)
 
     async def close_room(self, room_id: str):
-        for connection in self.rooms[room_id]['connections']:
-            await connection[1].close(reason='Room Closed')
+        room = self.rooms.get(room_id)
+        for connection in room:
+            await connection.close(reason='Room Closed')
+            self.rooms.get(room_id).remove(connection)
+        print(self.rooms)
