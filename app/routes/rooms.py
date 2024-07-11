@@ -4,15 +4,13 @@ from uuid import uuid4
 from datetime import datetime
 from random_username.generate import generate_username
 
-from app.utils import gameroom_manager
+from app.utils import waitroom_manager
 from app.utils.room_details import RoomDetails
 from app.utils.db import db
 
 """Module for all game room related functionality"""
 
 router = APIRouter()
-# waitingroom_manager = RoomManager()
-# gameroom_manager = RoomManager()
 
 
 @router.post('/gameroom/create',  status_code=status.HTTP_201_CREATED)
@@ -29,7 +27,7 @@ async def create_gameroom_route(room_details: RoomDetails):
         'create_time': datetime.now()
     }
     await db.rooms.insert_one(room)
-    gameroom_manager.rooms[room_id] = []
+    waitroom_manager.rooms[room_id] = []
     return JSONResponse(content={
         'message': 'Room created successfully',
         'room_id': room_id
@@ -56,7 +54,7 @@ async def start_game(room_id: str):
             'message': 'The game has already started'
         }, status_code=status.HTTP_409_CONFLICT)
     
-    await gameroom_manager.close_room(room_id)
+    await waitroom_manager.start_game(room_id)
     return JSONResponse(content={
         'message': 'Game started -> connect to the game socket to continue'
     }, status_code=status.HTTP_200_OK)
@@ -65,15 +63,15 @@ async def start_game(room_id: str):
 @router.websocket('/waitingroom/{room_id}')
 async def waitingroom_socket(websocket: WebSocket, room_id: str):
     username = generate_username()[0]
-    connect = await gameroom_manager.connect(websocket, room_id, username)
+    connect = await waitroom_manager.connect(websocket, room_id, username)
     if connect:
         try:
             users = await db.rooms.find_one({'room_id': room_id,}, {'_id': 0, 'users': 1})
-            await gameroom_manager.send_json(websocket, {
+            await waitroom_manager.send_json(websocket, {
                 'users': users.get('users'),
                 'current_user': username
             })
-            await gameroom_manager.broadcast_json(room_id, {
+            await waitroom_manager.broadcast_json(room_id, {
                 'message': f'{username} joined',
                 'action': 'join_chat',
                 'username': username,
@@ -85,8 +83,8 @@ async def waitingroom_socket(websocket: WebSocket, room_id: str):
                 await websocket.send_text(data)
         except WebSocketDisconnect:
             print('disconnecting')
-            await gameroom_manager.disconnect(websocket, room_id, username, False)
-            await gameroom_manager.broadcast_json(room_id, {
+            await waitroom_manager.disconnect(websocket, room_id, username)
+            await waitroom_manager.broadcast_json(room_id, {
                 'message': f"{username} left",
                 'action': 'exit_chat',
                 'username': username
@@ -97,7 +95,7 @@ async def waitingroom_socket(websocket: WebSocket, room_id: str):
 
 @router.websocket('/gameroom/{room_id}/{username}')
 async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
-    # connect = gameroom_manager.connect(websocket, room_id, username)
+    # connect = waitroom_manager.connect(websocket, room_id, username)
     await websocket.accept()
     # if connect:
     print(gameroom_manager.rooms)
