@@ -1,4 +1,5 @@
-from fastapi import APIRouter, WebSocketDisconnect, WebSocket
+from fastapi import APIRouter, WebSocketDisconnect, WebSocket, status
+from fastapi.responses import JSONResponse
 from uuid import uuid4
 from datetime import datetime
 from random_username.generate import generate_username
@@ -14,7 +15,7 @@ router = APIRouter()
 # gameroom_manager = RoomManager()
 
 
-@router.post('/gameroom/create',  status_code=201)
+@router.post('/gameroom/create',  status_code=status.HTTP_201_CREATED)
 async def create_gameroom_route(room_details: RoomDetails):
     # Generate room id
     room_id = str(uuid4())[:8]
@@ -29,15 +30,15 @@ async def create_gameroom_route(room_details: RoomDetails):
     }
     await db.rooms.insert_one(room)
     gameroom_manager.rooms[room_id] = []
-    return {
+    return JSONResponse(content={
         'message': 'Room created successfully',
         'room_id': room_id
-    }
+    }, status_code=status.HTTP_201_CREATED)
 
 
-@router.get('/game/{room_id}/start/', status_code=200)
+@router.get('/game/{room_id}/start/', status_code=status.HTTP_200_OK)
 async def start_game(room_id: str):
-    room = db.rooms.find_one_and_update(
+    room = await db.rooms.update_one(
         {'room_id': room_id}, 
         {
             '$set': {
@@ -46,11 +47,19 @@ async def start_game(room_id: str):
             }
         }
     )
-    if not room:
-        return {'message': 'The room_id was not found'}
+    if not room.matched_count:
+        return JSONResponse(content={
+            'message': 'The room_id was not found'
+        }, status_code=status.HTTP_404_NOT_FOUND)
+    elif not room.modified_count:
+        return JSONResponse(content={
+            'message': 'The game has already started'
+        }, status_code=status.HTTP_409_CONFLICT)
     
     await gameroom_manager.close_room(room_id)
-    return {'message': 'Game started -> connect to the game socket to continue'}
+    return JSONResponse(content={
+        'message': 'Game started -> connect to the game socket to continue'
+    }, status_code=status.HTTP_200_OK)
 
 
 @router.websocket('/waitingroom/{room_id}')
@@ -75,7 +84,8 @@ async def waitingroom_socket(websocket: WebSocket, room_id: str):
                 data = await websocket.receive_text()
                 await websocket.send_text(data)
         except WebSocketDisconnect:
-            await gameroom_manager.disconnect(websocket, room_id, username)
+            print('disconnecting')
+            await gameroom_manager.disconnect(websocket, room_id, username, False)
             await gameroom_manager.broadcast_json(room_id, {
                 'message': f"{username} left",
                 'action': 'exit_chat',
