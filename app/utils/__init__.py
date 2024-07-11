@@ -1,3 +1,3 @@
-from app.utils.room_manager import RoomManager
+from app.utils.waitroom_manager import WaitroomManager
 
-gameroom_manager = RoomManager()
+waitroom_manager = WaitroomManager()

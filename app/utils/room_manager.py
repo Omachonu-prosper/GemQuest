@@ -3,7 +3,8 @@ from app.utils.db import db
 
 
 class RoomManager:
-    rooms = dict()
+    def __init__(self) -> None:
+        self.rooms = dict()
 
     async def connect(self, websocket: WebSocket, room_id: str, username: str) -> bool:
         try:
@@ -22,6 +23,7 @@ class RoomManager:
         except KeyError:
             return False
 
+
     async def disconnect(self, websocket: WebSocket, room_id: str, username: str):
         self.rooms.get(room_id).remove(websocket)
         await db.rooms.update_one(
@@ -29,7 +31,8 @@ class RoomManager:
             {'$unset': {f'users.{username}': ""}}
         )
 
-    async def broadcast_json(self, room_id: str, data: dict, exclude: WebSocket):
+
+    async def broadcast_json(self, room_id: str, data: dict, exclude: WebSocket = None):
         for connection in self.rooms.get(room_id):
             if exclude:
                 if connection != exclude:
@@ -37,12 +40,6 @@ class RoomManager:
             else:
                 await connection.send_json(data)
 
+
     async def send_json(self, websocket: WebSocket, data: dict):
         await websocket.send_json(data)
-
-    async def close_room(self, room_id: str):
-        room = self.rooms.get(room_id)
-        for connection in room:
-            await connection.close(reason='Room Closed')
-            self.rooms.get(room_id).remove(connection)
-        print(self.rooms)
