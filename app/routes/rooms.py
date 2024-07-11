@@ -23,7 +23,7 @@ async def create_gameroom_route(room_details: RoomDetails):
         'game_started': False,
         'no_of_questions': room_details.no_of_questions,
         'users': {},
-        'game_state': 'in_waitingroom',
+        'game_state': 'in_waitroom',
         'create_time': datetime.now()
     }
     await db.rooms.insert_one(room)
@@ -60,10 +60,10 @@ async def start_game(room_id: str):
     }, status_code=status.HTTP_200_OK)
 
 
-@router.websocket('/waitingroom/{room_id}')
-async def waitingroom_socket(websocket: WebSocket, room_id: str):
+@router.websocket('/waitroom/{room_id}')
+async def waitroom_socket(websocket: WebSocket, room_id: str):
     username = generate_username()[0]
-    connect = await waitroom_manager.connect(websocket, room_id, username)
+    connect = await waitroom_manager.connect(websocket, room_id, username, False)
     if connect:
         try:
             users = await db.rooms.find_one({'room_id': room_id,}, {'_id': 0, 'users': 1})
@@ -98,7 +98,7 @@ async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
     # connect = waitroom_manager.connect(websocket, room_id, username)
     await websocket.accept()
     # if connect:
-    print(gameroom_manager.rooms)
+    # print(gameroom_manager.rooms)
     await websocket.send_text('Welcome to the game')
     while True:
         data = await websocket.receive_text()
