@@ -6,6 +6,12 @@ class WaitroomManager(RoomManager):
         super().__init__()
     
     async def start_game(self, room_id: str):
+        """
+        ### Upgrade the state of a game from the waitroom to a gameroom
+
+        #### Params
+        - room_id: The id of the room we want to start its game
+        """
         room = self.rooms.get(room_id)
         if not room:
             return False
