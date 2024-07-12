@@ -52,10 +52,11 @@ async def start_game(room_id: str):
         }, status_code=status.HTTP_404_NOT_FOUND)
     elif not room.modified_count:
         return JSONResponse(content={
-            'message': 'The game has already started'
+            'message': 'The game has already started or ended'
         }, status_code=status.HTTP_409_CONFLICT)
     
     await waitroom_manager.start_game(room_id)
+    gameroom_manager.rooms[room_id] = []
     return JSONResponse(content={
         'message': 'Game started -> connect to the game socket to continue'
     }, status_code=status.HTTP_200_OK)
@@ -98,16 +99,18 @@ async def waitroom_socket(websocket: WebSocket, room_id: str):
 @router.websocket('/gameroom/{room_id}/{username}')
 async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
     # game_started is false so the client gets addded to a gameroom
-    connect = gameroom_manager.connect(websocket, room_id, username, True)
+    connect = await gameroom_manager.connect(websocket, room_id, username, True)
     if connect:
         try:
             while True:
                 data = await websocket.receive_json()
                 # Wait for a request to generate a new question
+                print(data)
                 if data.get('moderator') and data.get('action') == 'gen_question':
                     # Call the question generation function
                     # Broadcast question
                     # Store question details
+                    await gameroom_manager.broadcast_json(room_id, {'message': 'New question'})
                     pass
 
                 # Wait for a client to provide the answer to a question
@@ -115,18 +118,16 @@ async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
                     # Evaluate answer
                     # Send evaluation
                     # Store answer
+                    await gameroom_manager.send_json(websocket, {'messge': 'Nice response'})
                     pass
 
                 if data.get('moderator') and data.get('action') == 'game_over':
                     # Braodcast leaderboard
-                    pass
-                            
+                    await gameroom_manager.broadcast_json(room_id, {'message': 'Game over'})
+                    await gameroom_manager.end_game(room_id)
+                    break
+
         except WebSocketDisconnect:
             await gameroom_manager.disconnect(websocket, room_id, username)
-            await gameroom_manager.broadcast_json(room_id, {
-                'message': f"{username} left",
-                'action': 'exit_room',
-                'username': username
-            }, exclude=websocket)
     else:
         await websocket.close(reason='Room not found')
