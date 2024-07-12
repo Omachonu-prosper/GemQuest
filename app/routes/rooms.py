@@ -31,7 +31,8 @@ async def create_gameroom_route(room_details: RoomDetails):
     waitroom_manager.rooms[room_id] = []
     return JSONResponse(content={
         'message': 'Room created successfully',
-        'room_id': room_id
+        'room_id': room_id,
+        'moderator_token': waitroom_manager.assign_moderator_token(room_id)
     }, status_code=status.HTTP_201_CREATED)
 
 

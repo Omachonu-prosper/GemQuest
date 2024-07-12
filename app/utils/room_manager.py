@@ -1,10 +1,13 @@
 from fastapi import WebSocket
 from app.utils.db import db
+from uuid import uuid4
 
 
 class RoomManager:
     def __init__(self) -> None:
-        self.rooms = dict()
+        self.rooms: dict[list] = dict()
+        # Moderators is a dict with the room id as the key and the moderator token as the value of the dict
+        self.moderators: dict[str] = dict()
 
 
     async def connect(
@@ -85,3 +88,19 @@ class RoomManager:
         - data: The data er want to send
         """
         await websocket.send_json(data)
+
+    
+    def assign_moderator_token(self, room_id: str) -> str:
+        """
+        ### Assign a moderator token to a room
+
+        #### Params
+        - room_id: The room we want to assign a moderator to
+        
+        #### Return
+        - token: The moderator token that would be used to authenticate requests to moderator functionality
+        """
+        token = str(uuid4())
+        if self.rooms.get(room_id):
+            self.moderators[room_id] = token
+        return token
