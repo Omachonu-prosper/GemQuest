@@ -80,7 +80,7 @@ async def waitroom_socket(websocket: WebSocket, room_id: str):
             while True:
                 # Wait for the start game request
                 data = await websocket.receive_text()
-                await websocket.send_text(data)
+                # Sit tight and wait for the game to start
         except WebSocketDisconnect:
             print('disconnecting')
             await waitroom_manager.disconnect(websocket, room_id, username)
