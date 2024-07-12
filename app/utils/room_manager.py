@@ -15,13 +15,18 @@ class RoomManager:
             game_started: bool
         ) -> bool:
         """
-        Initiate a client connect to a room
+        ### Initiate a client connect to a room
 
+        #### Params
         - websocket: The socket connection instance
         - room_id: The id of the room the user wants to join
         - username: The username generated for the client
         - game_started: Boolean value that will be True if the game has started 
             (If this is false the client is added to a wait room and if true the client is added to a game room)
+
+        #### Return
+        - True if the operation is successful
+        - False otherwise        
         """
         await websocket.accept()
         room_in_memory = self.rooms.get(room_id)
@@ -42,6 +47,14 @@ class RoomManager:
 
 
     async def disconnect(self, websocket: WebSocket, room_id: str, username: str):
+        """
+        ### Remove a client from a room
+
+        #### Params
+        - websocket: The client connection we want to disconnect from the room
+        - room_id: The id of the room we want to remove the client from
+        - username: The username of the client we want to remove
+        """
         self.rooms.get(room_id).remove(websocket)
         await db.rooms.update_one(
             {'room_id': room_id},
@@ -50,13 +63,25 @@ class RoomManager:
 
 
     async def broadcast_json(self, room_id: str, data: dict, exclude: WebSocket = None):
+        """
+        ### Braodcast json data to all members of a room
+
+        #### Params
+        - room_id: The id of the room we want to broadcast to
+        - data: The data we want to braodcast
+        - exclude: Optional clients we do not want to broadcast to
+        """
         for connection in self.rooms.get(room_id):
-            if exclude:
-                if connection != exclude:
-                    await connection.send_json(data)
-            else:
+            if exclude != connection:
                 await connection.send_json(data)
 
 
     async def send_json(self, websocket: WebSocket, data: dict):
+        """
+        ### Send personalized json messages to only one client
+
+        #### Params
+        - websocket: The client we want to send data to
+        - data: The data er want to send
+        """
         await websocket.send_json(data)
