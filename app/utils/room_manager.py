@@ -35,15 +35,26 @@ class RoomManager:
             return False
         
         room_in_memory.append(websocket)
-        room_in_db = await db.rooms.find_one_and_update(
-            {'room_id': room_id, 'game_started': game_started},
-            {'$set': {f'users.{username}': {
-                'status': 'connected',
-                }}
-            }
-        )
-        if not room_in_db:
-            return False
+        if not game_started:
+            # The game hasn't started and the client is joining a waitroom
+            # Add them to the database 
+            room_in_db = await db.rooms.find_one_and_update(
+                {'room_id': room_id, 'game_started': game_started},
+                {'$set': {f'users.{username}': {
+                    'status': 'connected',
+                    }}
+                }
+            )
+            if not room_in_db:
+                return False
+        else:
+            # The game has started and the client is joining a gameroom
+            # Verify that they are members of the room already
+            client_exists = await db.rooms.find_one(
+                {'room_id': room_id, 'game_started': game_started, f'users.{username}': {'$exists': True}},
+            )
+            if not client_exists:
+                return False
         return True
 
 
