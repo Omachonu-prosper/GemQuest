@@ -100,7 +100,24 @@ class RoomManager:
         #### Return
         - token: The moderator token that would be used to authenticate requests to moderator functionality
         """
-        token = str(uuid4())
-        if self.rooms.get(room_id):
+        if self.rooms.get(room_id, None) is not None:
+            token = str(uuid4())
             self.moderators[room_id] = token
-        return token
+            return token
+        return None
+
+
+    def verify_moderator_token(self, token: str, room_id: str) -> bool:
+        """
+        ### Verify that a client is a moderator of a room
+
+        #### Params
+        - token: The moderator token to be verified
+        - room_id: The id of the room we want to verify it's moderator
+
+        #### Return
+        - True if the token is valid and False otherwise
+        """
+        if self.moderators.get(room_id) == token:
+            return True
+        return False

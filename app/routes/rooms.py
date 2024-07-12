@@ -4,9 +4,8 @@ from uuid import uuid4
 from datetime import datetime
 from random_username.generate import generate_username
 
-from app.utils import waitroom_manager
-from app.utils import gameroom_manager
-from app.utils.room_details import RoomDetails
+from app.utils import waitroom_manager, gameroom_manager
+from app.utils.models import RoomDetails, ModeratorDetails
 from app.utils.db import db
 
 """Module for all game room related functionality"""
@@ -37,7 +36,13 @@ async def create_gameroom_route(room_details: RoomDetails):
 
 
 @router.get('/game/{room_id}/start/', status_code=status.HTTP_200_OK)
-async def start_game(room_id: str):
+async def start_game(room_id: str, moderator_details: ModeratorDetails):
+    is_moderator = waitroom_manager.verify_moderator_token(moderator_details.moderator_token, room_id)
+    if not is_moderator:
+        return JSONResponse(content={
+            'message': 'Invalid moderator token'
+        }, status_code=status.HTTP_401_UNAUTHORIZED)
+
     room = await db.rooms.update_one(
         {'room_id': room_id}, 
         {
