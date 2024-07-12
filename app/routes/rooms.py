@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocketDisconnect, WebSocket, status
+from fastapi import APIRouter, WebSocketDisconnect, WebSocket, status, WebSocketException
 from fastapi.responses import JSONResponse
 from uuid import uuid4
 from datetime import datetime
@@ -17,6 +17,7 @@ router = APIRouter()
 async def create_gameroom_route(room_details: RoomDetails):
     # Generate room id
     room_id = str(uuid4())[:8]
+    token = waitroom_manager.gen_moderator_token()
     room = {
         'category': room_details.category,
         'room_id': room_id,
@@ -24,20 +25,21 @@ async def create_gameroom_route(room_details: RoomDetails):
         'no_of_questions': room_details.no_of_questions,
         'users': {},
         'game_state': 'in_waitroom',
-        'create_time': datetime.now()
+        'create_time': datetime.now(),
+        'moderator_token': token
     }
     await db.rooms.insert_one(room)
     waitroom_manager.rooms[room_id] = []
     return JSONResponse(content={
         'message': 'Room created successfully',
         'room_id': room_id,
-        'moderator_token': waitroom_manager.assign_moderator_token(room_id)
+        'moderator_token': token
     }, status_code=status.HTTP_201_CREATED)
 
 
 @router.get('/game/{room_id}/start/', status_code=status.HTTP_200_OK)
 async def start_game(room_id: str, moderator_details: ModeratorDetails):
-    is_moderator = waitroom_manager.verify_moderator_token(moderator_details.moderator_token, room_id)
+    is_moderator = await waitroom_manager.verify_moderator_token(moderator_details.moderator_token, room_id)
     if not is_moderator:
         return JSONResponse(content={
             'message': 'Invalid moderator token'
@@ -71,7 +73,6 @@ async def start_game(room_id: str, moderator_details: ModeratorDetails):
 @router.websocket('/waitroom/{room_id}')
 async def waitroom_socket(websocket: WebSocket, room_id: str):
     username = generate_username()[0]
-    # game_started is false so the client gets addded to a waitroom
     connect = await waitroom_manager.connect(websocket, room_id, username, False)
     if connect:
         try:
@@ -103,16 +104,27 @@ async def waitroom_socket(websocket: WebSocket, room_id: str):
 
 
 @router.websocket('/gameroom/{room_id}/{username}')
-async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
-    # game_started is false so the client gets addded to a gameroom
+async def gameroom_socket(
+        websocket: WebSocket,
+        room_id: str,
+        username: str,
+        moderator_token: str = None
+    ):
     connect = await gameroom_manager.connect(websocket, room_id, username, True)
     if connect:
+        moderator = False
+        if moderator_token:
+            moderator = await gameroom_manager.verify_moderator_token(moderator_token, room_id)
+            if not moderator:
+                # The moderator token is present but invalid
+                raise WebSocketException(code=status.WS_1007_INVALID_FRAME_PAYLOAD_DATA)
+        
         try:
             while True:
                 data = await websocket.receive_json()
                 # Wait for a request to generate a new question
                 print(data)
-                if data.get('moderator') and data.get('action') == 'gen_question':
+                if moderator and data.get('action') == 'gen_question':
                     # Call the question generation function
                     # Broadcast question
                     # Store question details
@@ -127,7 +139,7 @@ async def gameroom_socket(websocket: WebSocket, room_id: str, username: str):
                     await gameroom_manager.send_json(websocket, {'messge': 'Nice response'})
                     pass
 
-                if data.get('moderator') and data.get('action') == 'game_over':
+                if moderator and data.get('action') == 'game_over':
                     # Braodcast leaderboard
                     await gameroom_manager.broadcast_json(room_id, {'message': 'Game over'})
                     await gameroom_manager.end_game(room_id)

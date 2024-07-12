@@ -6,8 +6,6 @@ from uuid import uuid4
 class RoomManager:
     def __init__(self) -> None:
         self.rooms: dict[list] = dict()
-        # Moderators is a dict with the room id as the key and the moderator token as the value of the dict
-        self.moderators: dict[str] = dict()
 
 
     async def connect(
@@ -90,26 +88,19 @@ class RoomManager:
         await websocket.send_json(data)
 
     
-    def assign_moderator_token(self, room_id: str) -> str:
+    def gen_moderator_token(self) -> str:
         """
-        ### Assign a moderator token to a room
+        ### Generate a moderator token
 
-        #### Params
-        - room_id: The room we want to assign a moderator to
-        
         #### Return
-        - token: The moderator token that would be used to authenticate requests to moderator functionality
+        - token: The moderator token that would be used to authenticate requests
         """
-        if self.rooms.get(room_id, None) is not None:
-            token = str(uuid4())
-            self.moderators[room_id] = token
-            return token
-        return None
+        return str(uuid4())
 
 
-    def verify_moderator_token(self, token: str, room_id: str) -> bool:
+    async def verify_moderator_token(self, token: str, room_id: str) -> bool:
         """
-        ### Verify that a client is a moderator of a room
+        ### Verify that a client is the moderator of a room
 
         #### Params
         - token: The moderator token to be verified
@@ -118,6 +109,9 @@ class RoomManager:
         #### Return
         - True if the token is valid and False otherwise
         """
-        if self.moderators.get(room_id) == token:
+        room = await db.rooms.find_one(
+            {'room_id': room_id, 'moderator_token': token}
+        )
+        if room:
             return True
         return False
