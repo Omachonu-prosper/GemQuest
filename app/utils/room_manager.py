@@ -40,9 +40,7 @@ class RoomManager:
             # Add them to the database 
             room_in_db = await db.rooms.find_one_and_update(
                 {'room_id': room_id, 'game_started': game_started},
-                {'$set': {f'users.{username}': {
-                    'status': 'connected',
-                    }}
+                {'$set': {f'users.{username}': {'status': 'connected'}}
                 }
             )
             if not room_in_db:
@@ -51,8 +49,9 @@ class RoomManager:
             # The game has started and the client is joining a gameroom
             # Verify that they are members of the room already
             client_exists = await db.rooms.find_one(
-                {'room_id': room_id, 'game_started': game_started, f'users.{username}': {'$exists': True}},
+                {'room_id': room_id, 'game_started': game_started, f'users.{username}': {'$exists': True}}
             )
+            print('username found')
             if not client_exists:
                 return False
         return True
@@ -60,17 +59,17 @@ class RoomManager:
 
     async def disconnect(self, websocket: WebSocket, room_id: str, username: str):
         """
-        ### Remove a client from a room
+        ### Set the state of a client in a room to disconected
 
         #### Params
         - websocket: The client connection we want to disconnect from the room
-        - room_id: The id of the room we want to remove the client from
-        - username: The username of the client we want to remove
+        - room_id: The id of the room we want to disconnect the client from
+        - username: The username of the client we want to disconnect
         """
         self.rooms.get(room_id).remove(websocket)
         await db.rooms.update_one(
             {'room_id': room_id},
-            {'$unset': {f'users.{username}': ""}}
+            {'$set': {f'users.{username}.status': "disconnected"}}
         )
 
 
