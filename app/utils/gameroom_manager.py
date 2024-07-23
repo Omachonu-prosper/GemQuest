@@ -30,13 +30,22 @@ class GameroomManager(RoomManager):
         print(self.rooms)
 
     
-    async def create_room_questions(self, category: str, no_of_questions: int, room_id: str) -> bool:
+    async def create_room_questions(self, room_id: str) -> bool:
+        room = await db.rooms.find_one(
+            {'room_id': room_id},
+            {'_id': 0, 'category': 1, 'no_of_questions': 1}
+        )
+        if not room:
+            return False
+        
+        print(room)
+        category = room['category']
+        no_of_questions = room['no_of_questions']
         questions = generate_questions(category, no_of_questions)
         questions = json.loads(questions)
-        update = await db.rooms.update_one(
+        await db.rooms.update_one(
             {'room_id': room_id},
             {'$set': {'questions': questions}}
         )
-        if update.matched_count:
-            return True
-        return False
+        return True
+        

@@ -67,7 +67,7 @@ async def start_game(room_id: str, moderator_details: ModeratorDetails):
     # Start the game, initialize the gameroom and create questions for that room
     await waitroom_manager.start_game(room_id)
     gameroom_manager.rooms[room_id] = []
-    await gameroom_manager.create_room_questions('Technology', 5, room_id)
+    await gameroom_manager.create_room_questions(room_id)
     return JSONResponse(content={
         'message': 'Game started -> connect to the game socket to continue'
     }, status_code=status.HTTP_200_OK)
