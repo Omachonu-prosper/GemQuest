@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocketDisconnect, WebSocket, status, WebSocketException
+from fastapi import APIRouter, WebSocketDisconnect, WebSocket, status, WebSocketException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from uuid import uuid4
 from datetime import datetime
@@ -39,7 +39,10 @@ async def create_gameroom_route(room_details: RoomDetails):
 
 
 @router.post('/game/{room_id}/start/', status_code=status.HTTP_200_OK)
-async def start_game(room_id: str, moderator_details: ModeratorDetails):
+async def start_game(
+        room_id: str, moderator_details: ModeratorDetails,
+        background_tasks: BackgroundTasks
+    ):
     is_moderator = await waitroom_manager.verify_moderator_token(moderator_details.moderator_token, room_id)
     if not is_moderator:
         return JSONResponse(content={
@@ -67,7 +70,7 @@ async def start_game(room_id: str, moderator_details: ModeratorDetails):
     # Start the game, initialize the gameroom and create questions for that room
     await waitroom_manager.start_game(room_id)
     gameroom_manager.rooms[room_id] = []
-    await gameroom_manager.create_room_questions(room_id)
+    background_tasks.add_task(gameroom_manager.create_room_questions, room_id)
     return JSONResponse(content={
         'message': 'Game started -> connect to the game socket to continue'
     }, status_code=status.HTTP_200_OK)
