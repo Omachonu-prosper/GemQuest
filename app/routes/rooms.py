@@ -123,37 +123,25 @@ async def gameroom_socket(
                 raise WebSocketException(code=status.WS_1007_INVALID_FRAME_PAYLOAD_DATA)
         
         try:
-            question = None
-
+            questions = await gameroom_manager.fetch_room_questions(room_id)
+            await gameroom_manager.send_json(websocket, questions)
+            
             while True:
                 data = await websocket.receive_json()
-                
-                # Wait for a request to generate a new question
-                if moderator and data.get('action') == 'gen_question':
-                    # Call the question generation function
-                    print('Generating Question')
-                    question = generate_question("Computer Science")
-                    # Broadcast question
-                    # Store question details
-                    print(question + "From line 136")
-                    await gameroom_manager.broadcast_json(room_id, {
-                        'message': 'New question',
-                        'question': question
-                    })
 
-                # Wait for a client to provide the answer to a question
-                if data.get('action') == 'ans_question':
-                    # Evaluate answer
-                    user_response = data.get('answer')
-                    evaluated_response = evaluate_user_response(question, user_response)
-                    print("A question was answered")
-                    # Send evaluation
-                    await gameroom_manager.send_json(websocket, {
-                        'message': evaluated_response 
-                    })
+                # # Wait for a client to provide the answer to a question
+                # if data.get('action') == 'ans_question':
+                #     # Evaluate answer
+                #     user_response = data.get('answer')
+                #     evaluated_response = evaluate_user_response(, user_response)
+                #     print("A question was answered")
+                #     # Send evaluation
+                #     await gameroom_manager.send_json(websocket, {
+                #         'message': evaluated_response 
+                #     })
 
-                    # Store answer
-                    pass
+                #     # Store answer
+                #     pass
 
                 if moderator and data.get('action') == 'game_over':
                     # Braodcast leaderboard

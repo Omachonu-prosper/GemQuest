@@ -38,7 +38,6 @@ class GameroomManager(RoomManager):
         if not room:
             return False
         
-        print(room)
         category = room['category']
         no_of_questions = room['no_of_questions']
         questions = generate_questions(category, no_of_questions)
@@ -48,4 +47,16 @@ class GameroomManager(RoomManager):
             {'$set': {'questions': questions}}
         )
         return True
+    
+
+    async def fetch_room_questions(self, room_id: str) -> list | bool:
+        room =  room = await db.rooms.find_one(
+            {'room_id': room_id},
+            {'_id': 0, 'questions': 1}
+        )
+        if not room:
+            return False
+        
+        questions = room['questions']
+        return questions
         
