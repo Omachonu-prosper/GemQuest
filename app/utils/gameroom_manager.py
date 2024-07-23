@@ -1,5 +1,8 @@
 from app.utils.room_manager import RoomManager
 from app.utils.db import db
+from app.utils.gemini import generate_questions
+
+import json
 
 
 class GameroomManager(RoomManager):
@@ -25,3 +28,15 @@ class GameroomManager(RoomManager):
             )
             del self.rooms[room_id]
         print(self.rooms)
+
+    
+    async def create_room_questions(self, category: str, no_of_questions: int, room_id: str) -> bool:
+        questions = generate_questions(category, no_of_questions)
+        questions = json.loads(questions)
+        update = await db.rooms.update_one(
+            {'room_id': room_id},
+            {'$set': {'questions': questions}}
+        )
+        if update.matched_count:
+            return True
+        return False
