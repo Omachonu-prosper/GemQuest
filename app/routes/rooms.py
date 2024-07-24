@@ -6,7 +6,6 @@ from random_username.generate import generate_username
 
 from app.utils import waitroom_manager, gameroom_manager
 from app.utils.models import RoomDetails, ModeratorDetails
-from app.utils.gemini import generate_questions, evaluate_user_response
 from app.utils.db import db
 
 """Module for all game room related functionality"""
@@ -132,19 +131,22 @@ async def gameroom_socket(
             while True:
                 data = await websocket.receive_json()
 
-                # # Wait for a client to provide the answer to a question
-                # if data.get('action') == 'ans_question':
-                #     # Evaluate answer
-                #     user_response = data.get('answer')
-                #     evaluated_response = evaluate_user_response(, user_response)
-                #     print("A question was answered")
-                #     # Send evaluation
-                #     await gameroom_manager.send_json(websocket, {
-                #         'message': evaluated_response 
-                #     })
-
-                #     # Store answer
-                #     pass
+                # Wait for a client to provide the answer to a question
+                if data.get('action') == 'ans_question':
+                    question_id = data.get('question_id')
+                    answer = data.get('answer')
+                    if question_id and answer:
+                        # Evaluate answer
+                        await gameroom_manager.store_user_evaluation(room_id, username, answer, question_id)
+                        print("A question was answered")
+                        await gameroom_manager.send_json(websocket, {
+                            'message': f'question {question_id} evaluated' 
+                        })
+                    else:
+                        await gameroom_manager.send_json(websocket, {
+                            'message': 'incomplete data [no question_id or answer in request]',
+                            'error': True
+                        })
 
                 if moderator and data.get('action') == 'game_over':
                     # Braodcast leaderboard

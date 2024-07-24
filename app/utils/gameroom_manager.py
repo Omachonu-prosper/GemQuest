@@ -1,6 +1,6 @@
 from app.utils.room_manager import RoomManager
 from app.utils.db import db
-from app.utils.gemini import generate_questions
+from app.utils.gemini import generate_questions, evaluate_user
 
 import json
 
@@ -59,4 +59,35 @@ class GameroomManager(RoomManager):
         
         questions = room['questions']
         return questions
+    
+
+    async def store_user_evaluation(self, room_id: str, username: str, answer: str, question_id:int):    
+        room =  room = await db.rooms.find_one(
+            {'room_id': room_id, f'users.{username}': {'$exists': True}},
+            {'_id': 0, 'questions': 1}
+        )
+        if not room:
+            return False
         
+        questions = room['questions']
+        if question_id > len(questions) or question_id < 1:
+            # The question_id is invalid
+            return False
+
+        question = questions[question_id - 1]
+        evaluation = evaluate_user(question, answer)
+        print(evaluation)
+        evaluation = json.loads(evaluation)
+
+        await db.rooms.update_one(
+            {'room_id': room_id},
+            {
+                '$inc': {f'users.{username}.score': evaluation['grade']},
+                '$set': {f'users.{username}.answers.{question_id}': {
+                    'answer': answer,
+                    'gemini_response': evaluation['response'],
+                    'grade': evaluation['grade']
+                }}
+            }
+        )
+        return True
