@@ -40,7 +40,8 @@ class RoomManager:
             # Add them to the database 
             room_in_db = await db.rooms.find_one_and_update(
                 {'room_id': room_id, 'game_started': game_started},
-                {'$set': {f'users.{username}': {'status': 'connected'}}
+                {
+                    '$set': {f'users.{username}': {'status': 'connected'}}
                 }
             )
             if not room_in_db:
@@ -48,10 +49,12 @@ class RoomManager:
         else:
             # The game has started and the client is joining a gameroom
             # Verify that they are members of the room already
-            client_exists = await db.rooms.find_one(
-                {'room_id': room_id, 'game_started': game_started, f'users.{username}': {'$exists': True}}
+            client_exists = await db.rooms.find_one_and_update(
+                {'room_id': room_id, 'game_started': game_started, f'users.{username}': {'$exists': True}},
+                {
+                    '$set': {f'users.{username}': {'status': 'connected'}}
+                }
             )
-            print('username found')
             if not client_exists:
                 return False
         return True
