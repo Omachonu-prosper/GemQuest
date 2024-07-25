@@ -91,3 +91,23 @@ class GameroomManager(RoomManager):
             }
         )
         return True
+
+
+    async def generate_leaderboard(self, room_id: str) -> list:
+        room = await db.rooms.find_one({'room_id': room_id}, {'_id': 0, 'users': 1})
+        if not room:
+            return []
+        
+        users = room['users']
+        user_list = [
+            {'username': username, 'score': user_info.get('score', 0) } 
+            for 
+            username, user_info in users.items()
+        ]
+        sorted_users = sorted(user_list, key=lambda x: x['score'], reverse=True)
+        leaderboard = [
+            {'rank': index + 1, 'username': user['username'], 'score': user['score']} 
+            for 
+            index, user in enumerate(sorted_users)
+        ]
+        return leaderboard
