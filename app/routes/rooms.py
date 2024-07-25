@@ -147,13 +147,16 @@ async def gameroom_socket(
                             'message': 'incomplete data [no question_id or answer in request]',
                             'error': True
                         })
-
-                if moderator and data.get('action') == 'end_game':
+                elif moderator and data.get('action') == 'end_game':
                     await gameroom_manager.broadcast_json(room_id, {
                         'message': 'Game over',
                         'leaderboard': await gameroom_manager.generate_leaderboard(room_id)
                     })
                     await gameroom_manager.end_game(room_id)
+                else:
+                    await gameroom_manager.send_json(websocket, {
+                        'message': 'Invalid, unauthorized or unknown action'
+                    })
 
         except WebSocketDisconnect:
             await gameroom_manager.disconnect(websocket, room_id, username)
