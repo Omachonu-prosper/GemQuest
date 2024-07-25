@@ -1,10 +1,11 @@
 from fastapi import WebSocket
 from app.utils.db import db
+from uuid import uuid4
 
 
 class RoomManager:
     def __init__(self) -> None:
-        self.rooms = dict()
+        self.rooms: dict[list] = dict()
 
 
     async def connect(
@@ -34,31 +35,44 @@ class RoomManager:
             return False
         
         room_in_memory.append(websocket)
-        room_in_db = await db.rooms.find_one_and_update(
-            {'room_id': room_id, 'game_started': game_started},
-            {'$set': {f'users.{username}': {
-                'status': 'connected',
-                }}
-            }
-        )
-        if not room_in_db:
-            return False
+        if not game_started:
+            # The game hasn't started and the client is joining a waitroom
+            # Add them to the database 
+            room_in_db = await db.rooms.find_one_and_update(
+                {'room_id': room_id, 'game_started': game_started},
+                {
+                    '$set': {f'users.{username}': {'status': 'connected'}}
+                }
+            )
+            if not room_in_db:
+                return False
+        else:
+            # The game has started and the client is joining a gameroom
+            # Verify that they are members of the room already
+            client_exists = await db.rooms.find_one_and_update(
+                {'room_id': room_id, 'game_started': game_started, f'users.{username}': {'$exists': True}},
+                {
+                    '$set': {f'users.{username}': {'status': 'connected'}}
+                }
+            )
+            if not client_exists:
+                return False
         return True
 
 
     async def disconnect(self, websocket: WebSocket, room_id: str, username: str):
         """
-        ### Remove a client from a room
+        ### Set the state of a client in a room to disconected
 
         #### Params
         - websocket: The client connection we want to disconnect from the room
-        - room_id: The id of the room we want to remove the client from
-        - username: The username of the client we want to remove
+        - room_id: The id of the room we want to disconnect the client from
+        - username: The username of the client we want to disconnect
         """
         self.rooms.get(room_id).remove(websocket)
         await db.rooms.update_one(
             {'room_id': room_id},
-            {'$unset': {f'users.{username}': ""}}
+            {'$set': {f'users.{username}.status': "disconnected"}}
         )
 
 
@@ -85,3 +99,32 @@ class RoomManager:
         - data: The data er want to send
         """
         await websocket.send_json(data)
+
+    
+    def gen_moderator_token(self) -> str:
+        """
+        ### Generate a moderator token
+
+        #### Return
+        - token: The moderator token that would be used to authenticate requests
+        """
+        return str(uuid4())
+
+
+    async def verify_moderator_token(self, token: str, room_id: str) -> bool:
+        """
+        ### Verify that a client is the moderator of a room
+
+        #### Params
+        - token: The moderator token to be verified
+        - room_id: The id of the room we want to verify it's moderator
+
+        #### Return
+        - True if the token is valid and False otherwise
+        """
+        room = await db.rooms.find_one(
+            {'room_id': room_id, 'moderator_token': token}
+        )
+        if room:
+            return True
+        return False
