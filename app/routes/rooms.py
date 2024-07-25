@@ -131,7 +131,6 @@ async def gameroom_socket(
             while True:
                 data = await websocket.receive_json()
 
-                # Wait for a client to provide the answer to a question
                 if data.get('action') == 'ans_question':
                     question_id = data.get('question_id')
                     answer = data.get('answer')
@@ -147,6 +146,14 @@ async def gameroom_socket(
                             'message': 'incomplete data [no question_id or answer in request]',
                             'error': True
                         })
+                elif data.get('action') == 'user_summary':
+                    summary = await gameroom_manager.generate_user_summary(room_id, username)
+                    if len(summary) == 0:
+                        await gameroom_manager.send_json(websocket, {
+                            'message': 'User summaries can only be generated when the game has ended'
+                        })
+                    else:
+                        await gameroom_manager.send_json(websocket, summary)                        
                 elif moderator and data.get('action') == 'end_game':
                     await gameroom_manager.broadcast_json(room_id, {
                         'message': 'Game over',

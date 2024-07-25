@@ -110,3 +110,14 @@ class GameroomManager(RoomManager):
             index, user in enumerate(sorted_users)
         ]
         return leaderboard
+    
+
+    async def generate_user_summary(self, room_id: str, username: str):
+        room = await db.rooms.find_one(
+            {'room_id': room_id, 'game_state': 'game_ended'},
+            {'_id': 0, f'users.{username}': 1}
+        )
+        if not room:
+            return []
+
+        return room['users'][username]
