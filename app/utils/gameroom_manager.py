@@ -1,5 +1,6 @@
 from app.utils.room_manager import RoomManager
 from app.utils.db import db
+from datetime import datetime
 from app.utils.gemini import generate_questions, evaluate_user
 
 import json
@@ -21,7 +22,10 @@ class GameroomManager(RoomManager):
         if room:            
             await db.rooms.update_one(
                 {'room_id': room_id, 'game_state': 'game_started'},
-                {'$set': {'game_state': 'game_ended'}}
+                {'$set': {
+                    'game_state': 'game_ended',
+                    'ended_at': datetime.now()
+                }}
             )
 
     
