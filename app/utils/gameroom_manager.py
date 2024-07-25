@@ -11,23 +11,18 @@ class GameroomManager(RoomManager):
 
     async def end_game(self, room_id: str):
         """
-        ### Remove all users from a room
+        ### Set the game state to ended
         (to be initiated when an end game event is propagated)
 
         #### Params
-        - room_id: The id of the room we want to end its game
+        - room_id: The id of the gameroom we want to end
         """
-        room = self.rooms.get(room_id)        
-        if room:
-            for connection in room:
-                await connection.close(reason='Game over')
-            
+        room = self.rooms.get(room_id)
+        if room:            
             await db.rooms.update_one(
                 {'room_id': room_id, 'game_state': 'game_started'},
                 {'$set': {'game_state': 'game_ended'}}
             )
-            del self.rooms[room_id]
-        print(self.rooms)
 
     
     async def create_room_questions(self, room_id: str) -> bool:

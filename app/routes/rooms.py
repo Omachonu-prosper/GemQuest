@@ -148,11 +148,12 @@ async def gameroom_socket(
                             'error': True
                         })
 
-                if moderator and data.get('action') == 'game_over':
-                    # Braodcast leaderboard
-                    await gameroom_manager.broadcast_json(room_id, {'message': 'Game over'})
+                if moderator and data.get('action') == 'end_game':
+                    await gameroom_manager.broadcast_json(room_id, {
+                        'message': 'Game over',
+                        'leaderboard': await gameroom_manager.generate_leaderboard(room_id)
+                    })
                     await gameroom_manager.end_game(room_id)
-                    break
 
         except WebSocketDisconnect:
             await gameroom_manager.disconnect(websocket, room_id, username)
