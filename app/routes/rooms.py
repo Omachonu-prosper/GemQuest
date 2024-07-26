@@ -141,11 +141,15 @@ async def gameroom_socket(
                     answer = data.get('answer')
                     if question_id and answer:
                         # Evaluate answer
-                        await gameroom_manager.store_user_evaluation(room_id, username, answer, question_id)
-                        print("A question was answered")
-                        await gameroom_manager.send_json(websocket, {
-                            'message': f'question {question_id} evaluated' 
-                        })
+                        eval = await gameroom_manager.store_user_evaluation(room_id, username, answer, question_id)
+                        if not eval:
+                            await gameroom_manager.send_json(websocket, {
+                                'message': 'could not evaluate answer [be sure you are passing valid data and the game has not ended]' 
+                            })
+                        else:
+                            await gameroom_manager.send_json(websocket, {
+                                'message': f'question {question_id} evaluated'
+                            })
                     else:
                         await gameroom_manager.send_json(websocket, {
                             'message': 'incomplete data [no question_id or answer in request]',
