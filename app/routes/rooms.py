@@ -70,6 +70,7 @@ async def start_game(
     await waitroom_manager.start_game(room_id)
     gameroom_manager.rooms[room_id] = []
     background_tasks.add_task(gameroom_manager.create_room_questions, room_id)
+    # await gameroom_manager.create_room_questions(room_id)
     return JSONResponse(content={
         'message': 'Game started -> connect to the game socket to continue'
     }, status_code=status.HTTP_200_OK)
@@ -126,6 +127,10 @@ async def gameroom_socket(
         
         try:
             questions = await gameroom_manager.fetch_room_questions(room_id)
+            if not questions:
+                # Prevent clients from entering rooms that do not have questions
+                raise WebSocketException(code=status.WS_1013_TRY_AGAIN_LATER)
+            
             await gameroom_manager.send_json(websocket, questions)
             
             while True:
