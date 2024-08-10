@@ -5,9 +5,17 @@ from app.routes import endpoint
 from app.routes import rooms
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.utils.waitroom_expiry import close_expired_waitrooms
+from fastapi.middleware.cors import CORSMiddleware
 
 # Initialize app
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 scheduler = BackgroundScheduler()
 # scheduler.add_job(close_expired_waitrooms, 'interval', minutes=10)
 scheduler.start()

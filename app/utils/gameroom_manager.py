@@ -62,7 +62,7 @@ class GameroomManager(RoomManager):
 
     async def store_user_evaluation(self, room_id: str, username: str, answer: str, question_id:int):    
         room =  room = await db.rooms.find_one(
-            {'room_id': room_id, f'users.{username}': {'$exists': True}},
+            {'room_id': room_id, f'users.{username}': {'$exists': True}, 'game_state': 'game_started'},
             {'_id': 0, 'questions': 1}
         )
         if not room:

@@ -70,6 +70,7 @@ async def start_game(
     await waitroom_manager.start_game(room_id)
     gameroom_manager.rooms[room_id] = []
     background_tasks.add_task(gameroom_manager.create_room_questions, room_id)
+    # await gameroom_manager.create_room_questions(room_id)
     return JSONResponse(content={
         'message': 'Game started -> connect to the game socket to continue'
     }, status_code=status.HTTP_200_OK)
@@ -126,6 +127,10 @@ async def gameroom_socket(
         
         try:
             questions = await gameroom_manager.fetch_room_questions(room_id)
+            if not questions:
+                # Prevent clients from entering rooms that do not have questions
+                raise WebSocketException(code=status.WS_1013_TRY_AGAIN_LATER)
+            
             await gameroom_manager.send_json(websocket, questions)
             
             while True:
@@ -136,11 +141,15 @@ async def gameroom_socket(
                     answer = data.get('answer')
                     if question_id and answer:
                         # Evaluate answer
-                        await gameroom_manager.store_user_evaluation(room_id, username, answer, question_id)
-                        print("A question was answered")
-                        await gameroom_manager.send_json(websocket, {
-                            'message': f'question {question_id} evaluated' 
-                        })
+                        eval = await gameroom_manager.store_user_evaluation(room_id, username, answer, question_id)
+                        if not eval:
+                            await gameroom_manager.send_json(websocket, {
+                                'message': 'could not evaluate answer [be sure you are passing valid data and the game has not ended]' 
+                            })
+                        else:
+                            await gameroom_manager.send_json(websocket, {
+                                'message': f'question {question_id} evaluated'
+                            })
                     else:
                         await gameroom_manager.send_json(websocket, {
                             'message': 'incomplete data [no question_id or answer in request]',
