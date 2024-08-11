@@ -98,6 +98,11 @@ async def waitroom_socket(websocket: WebSocket, room_id: str):
                 # Wait for the start game request
                 data = await websocket.receive_text()
                 # Sit tight and wait for the game to start
+
+                if data:
+                    await gameroom_manager.send_json(websocket, {
+                        'message': 'Invalid, unauthorized or unknown action'
+                    })
         except WebSocketDisconnect:
             await waitroom_manager.disconnect(websocket, room_id, username)
             await waitroom_manager.broadcast_json(room_id, {
