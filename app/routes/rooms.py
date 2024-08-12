@@ -172,7 +172,6 @@ async def gameroom_socket(
                     await gameroom_manager.broadcast_json(room_id, {
                         'message': 'Game over',
                         'leaderboard': await gameroom_manager.generate_leaderboard(room_id),
-                        'current_user': username
                     })
                     await gameroom_manager.end_game(room_id)
                 else:
